@@ -12,25 +12,25 @@ I choose to use the official Docker Image for Go "golang:1.17.3". This was the e
 
 ### Configuration with Env Variables
 
-The API services database connection is configurable with Env variables. This way it is easy to configure the service in differnt environment like container orchestration platforms and tools. This is one of the principles described in the 12 factor apps [12factor][]
+The API services database connection is configurable with Env variables. This way it is easy to configure the service in differnt environment like container orchestration platforms and other tools. This is one of the principles described in the 12 factor apps [12factor][]
 
 ### DB Interface and handler struct
 
 The DB is implemented as an Interface in this code because that makes it easy to replace the implementation that connects to a SQL database by another implementation for example for unit testing purposes.
 
-The HTTP handler for the API is defined as a method on a struct called "handler". This way the handler struct can hold a reference to the current database implementation and use it in the handler. There are multiple ways to pass arguments like this DB reference to http.Handler (global variable, wrapped http handler, or struct implementing [http.Handler][]). In fact I've once written a [blog post][] about that. I've decided to use the struct approach because it makes it easy to extend the arguments that should be passed to the handler afterwards.
+The HTTP handler for the API is defined as a method on a struct called "handler". This way the handler struct can hold a reference to the current database implementation. This references is then used in in the handler function. There are multiple ways to pass arguments like this to http.Handler (global variable, wrapped http handler, or struct implementing [http.Handler][]). In fact I've once written a [blog post][] about that. I've decided to use the struct approach, because it makes it easy to extend the arguments that should be passed to the handler afterwards.
 
 ### SQL Driver
 
-In order to connect to a PostgreSQL database you have to import an appropriate driver I decided to use: [github.com/lib/pq][]. I've used in the past and it has a license allowing free use for any purpose.
+In order to connect to a PostgreSQL database you have to import an appropriate driver. I decided to use: [github.com/lib/pq][]. I've used in the past and it has a license allowing free use for any purpose.
 
 ## Additional Considerations
 
 ### Docker Image Size and security
 
-I used a docker base image of golang, cause this was the fastest way for me to get it running. This base image is larger then it needs to be and the configuration can also be considered as insecure as the process is running with the root user. In a production docker image one should consider using an image that is as small as possible and implement additional security aspects like a dedicated user for the service.
+I used a docker base image of golang, cause this was the fastest way for me to get it running. This base image is larger then it needs to be and the configuration can also be considered as insecure as the process is running with the root user. In a production environment one should consider using an image that is as small as possible and implement additional security aspects like a dedicated user for the service.
 
-### All code in one package / Better package management
+### Better package structure
 
 In this project all code is written in a single file and in a single Go package. Once the project grows it should be split into different Files/Packages to keep it well organized.
 

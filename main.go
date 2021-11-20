@@ -20,7 +20,7 @@ type ethDB interface {
 	AggregateFeeByHour() ([]AggregatedFee, error)
 }
 
-var query string = `
+const query string = `
 SELECT CAST(extract(EPOCH FROM date_trunc('hour', sub.ts)) AS INT) AS hour, SUM(gas_payed)* 10 ^ -18 AS hourly_fee FROM 
 	(SELECT t.gas_used*t.gas_price AS gas_payed, t.block_time AS ts FROM 
 		transactions AS t LEFT JOIN contracts AS c
