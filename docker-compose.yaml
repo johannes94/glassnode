@@ -8,3 +8,13 @@ services:
       POSTGRES_PASSWORD: test
     ports:
       - "5432:5432"
+  api:
+    build: .
+    environment:
+      ETH_DB_HOST: database 
+      ETH_DB_USER: test
+      ETH_DB_PASSWORD: test
+      ETH_DB_NAME: eth
+    ports:
+      - "8080:8080"
+    
