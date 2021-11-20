@@ -1,27 +1,56 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
-	"time"
+	"os"
+
+	_ "github.com/lib/pq"
 )
 
 type AggregatedFee struct {
-	Timestamp int64   `json:"t"`
-	Fee       float64 `json:"v"`
+	Hour      int64   `json:"t"`
+	HourlyFee float64 `json:"v"`
 }
 
 type ethDB interface {
 	AggregateFeeByHour() ([]AggregatedFee, error)
 }
 
-type inmemoryDB struct {
-	data []AggregatedFee
+var query string = `
+SELECT CAST(extract(EPOCH FROM date_trunc('hour', sub.ts)) AS INT) AS hour, SUM(gas_payed)* 10 ^ -18 AS hourly_fee FROM 
+	(SELECT t.gas_used*t.gas_price AS gas_payed, t.block_time AS ts FROM 
+		transactions AS t LEFT JOIN contracts AS c
+		ON t.from = c.address OR t.to = c.address
+		WHERE c.address IS NULL
+) AS sub 
+GROUP BY hour;
+`
+
+type psqlDB struct {
+	con *sql.DB
 }
 
-func (iDB inmemoryDB) AggregateFeeByHour() ([]AggregatedFee, error) {
-	return iDB.data, nil
+func (pDB psqlDB) AggregateFeeByHour() (result []AggregatedFee, err error) {
+	rows, err := pDB.con.Query(query)
+	if err != nil {
+		return
+	}
+
+	for rows.Next() {
+		dest := AggregatedFee{}
+		err = rows.Scan(&dest.Hour, &dest.HourlyFee)
+		if err != nil {
+			return
+		}
+
+		result = append(result, dest)
+	}
+
+	return
 }
 
 type handler struct {
@@ -44,25 +73,32 @@ func (h handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 
 	encoder := json.NewEncoder(rw)
 	encoder.SetIndent("", "  ")
+	rw.Header().Add("Content-Type", "application/json")
 	if err := encoder.Encode(&data); err != nil {
 		log.Println(err)
 		http.Error(rw, "Unexpected internal error", http.StatusInternalServerError)
 		return
 	}
 
-	rw.Header().Add("Content-Type", "application/json")
 }
 
 func main() {
-	data := []AggregatedFee{
-		{time.Now().Unix(), 10.5},
-		{time.Now().Unix(), 11.244},
+
+	host := os.Getenv("ETH_DB_HOST")
+	user := os.Getenv("ETH_DB_USER")
+	pwd := os.Getenv("ETH_DB_PASSWORD")
+	dbname := os.Getenv("ETH_DB_NAME")
+
+	cStr := fmt.Sprintf("user=%s dbname=%s password=%s host=%s sslmode=disable", user, dbname, pwd, host)
+	con, err := sql.Open("postgres", cStr)
+	if err != nil {
+		log.Fatal("error connecting to database", err)
 	}
 
-	h := handler{inmemoryDB{data}}
+	h := handler{psqlDB{con}}
 
+	log.Println("API starts listening")
 	if err := http.ListenAndServe(":8080", h); err != nil {
 		log.Println("Error starting webserver: ", err)
 	}
-
 }
