@@ -67,7 +67,7 @@ func (h handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	data, err := h.db.AggregateFeeByHour()
 	if err != nil {
 		log.Println(err)
-		http.Error(rw, "Could not reach datasource", http.StatusInternalServerError)
+		http.Error(rw, "Error communicating with datasource", http.StatusInternalServerError)
 		return
 	}
 
