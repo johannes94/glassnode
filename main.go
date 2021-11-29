@@ -23,10 +23,8 @@ type ethDB interface {
 const query string = `
 SELECT CAST(extract(EPOCH FROM date_trunc('hour', sub.ts)) AS INT) AS hour, SUM(gas_payed)* 10 ^ -18 AS hourly_fee FROM 
 	(SELECT t.gas_used*t.gas_price AS gas_payed, t.block_time AS ts FROM 
-		transactions AS t LEFT JOIN contracts AS c
-		ON t.from = c.address OR t.to = c.address
-		WHERE c.address IS NULL
-) AS sub 
+		(SELECT gas_used, gas_price, t.from, t.to, t.block_time FROM transactions AS t where t.to != '0x0000000000000000000000000000000000000000' and t.from != '0x0000000000000000000000000000000000000000') as t 
+		LEFT JOIN contracts AS c ON t.from = c.address OR t.to = c.address WHERE c.address IS NULL) AS sub 
 GROUP BY hour;
 `
 
@@ -98,7 +96,7 @@ func main() {
 	h := handler{psqlDB{con}}
 
 	log.Println("API starts listening")
-	if err := http.ListenAndServe(":8080", h); err != nil {
+	if err := http.ListenAndServe(":8081", h); err != nil {
 		log.Println("Error starting webserver: ", err)
 	}
 }
